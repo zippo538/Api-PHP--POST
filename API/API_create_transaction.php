@@ -1,112 +1,51 @@
 <?php 
-require_once "../config/getConneciton.php";
-require_once "../readApi/fetchData.php";
-$conn = getConnection();
+include "../config/connect.php";
+$conn = getConnect();
+header('Content-Type: application/json; charset=utf-8');
 
-    $rekAsal = $_GET['rekasal'];
-    $rekTujuan = $_POST['rektujuan'];
-    $nominal = $_POST['nominal'];
-      
-    try{
-        //begin transfer saldo
-        $conn->beginTransaction();
-        $sql= transferSaldo($rekAsal,$rekTujuan,$nominal);
-        $conn->commit();
 
-        if($sql){
-            echo "sukses";
-            getDataAkun();
+$idRek = $_GET['norek'];
+$toRek = $_POST['rektujuan'];
+$amount = $_POST['saldo'];
+$date = date('Y-m-d');    
+$status = "success";
+
+try {
+    $conn->begin_transaction();
+    if($sql = $conn->prepare("INSERT INTO TblTransfer (idTransfer,rektujuan,rekasal,nominal,tgltf,status) VALUES (?,?,?,?,?,?)")) {
+        $sql->bind_param(1,$sql->insert_id);
+        $sql->bind_param(2,$idRek);
+        $sql->bind_param(3,$toRek);
+        $sql->bind_param(4,$amount);
+        $sql->bind_param(5,$date);
+        if(isset($sql->error)){
+            $status = "fail";
+            header(json_encode($status));
         }
+        $sql->bind_param(6,$sql->$status);
 
-    }
-    catch (PDOException $e){
-        echo " 1.error : " . $e->getMessage() . PHP_EOL;
-    }
-    finally{
-        $conn= null;
-    }
+        //checking amount 
+        $sql_saldo= 'SELECT saldo FROM TblAkun where norek=:idRek';
+        $stmt = $conn->prepare($sql_saldo);
+        $stmt->execute(array(':idRek'=>$idRek));
+        $availableAmmount = mysqli_fetch_column($sql_saldo,1);
+        $stmt->close(); 
 
-    function transferSaldo($from,$to, $amount){
-        $conn = getConnection();
-        $status = "Oke";
-        
-        try {
-            $conn->beginTransaction();
-            //get Saldo 
-            $getRekAsal= 'SELECT saldo FROM TblAkun where idAkun=:from';
-            $stmt = $conn->prepare($getRekAsal);
-            $stmt->execute(array(':from'=>$from));
-            $availableAmmount = (int) $stmt->fetchColumn();
-            $stmt->closeCursor(); 
-    
-            if($availableAmmount < $amount){
-                $status = "Gagal";
-                addTransaction($from,$to,$amount,$status);
-                echo "amount saldo not enough";
-                return false;
-            }
-            else if(!$from && !$to){
-                $status = "Gagal";
-                addTransaction($from,$to,$amount,$status);
-                echo "not found Account";
-                return false;
-            }
-            //deduct saldo account
-            $sql_update_saldo = 'UPDATE TblAkun SET saldo = saldo - :amount WHERE idAkun = :from';
-            $stmt = $conn->prepare($sql_update_saldo);
-            $stmt->execute(array(':amount'=>$amount,':from'=>$from));
-            $stmt->closeCursor();
-            
-            //add receiving transafer saldo
-        
-                $sql_update_to = "UPDATE TblAkun SET saldo = saldo + :amount WHERE idAkun =:to";
-                $stmt = $conn ->prepare($sql_update_to);
-                $stmt->execute(array(':amount'=>$amount,':to'=>$to));
-                $stmt->closeCursor();
-            
-    
-            //add transaction
-            addTransaction($from,$to,$amount,$status);
-
-            //commit transaction
-            $conn->commit();
+        if($availableAmmount < $amount){
+            echo "not enough saldo";
+            return false;
         }
-        catch (PDOException $e){
-            $conn->rollBack();
-            echo "2. error: " . $e->getMessage();
-        }
-        finally{
-            $conn= null;
+        else if(!$from && !$to){
+            echo "Account rekening not found";
+            return false;
         }
     }
+}
+catch(mysqli_sql_exception $e){
+    echo "error : " . $e->getMessage();
+}
 
-    function addTransaction ($from,$to,$amount,$status){
-        $tanggal = date('Y-m-d');
-        
-        $idTF = rand(1,1000);
-        $conn = getConnection();
-        
-        $sql_transaction = $conn->prepare("INSERT INTO TblTransfer (idTransfer,rektujuan,rekasal,nominal,tgltf,status) VALUES (?,?,?,?,?,?)");
-            $sql_transaction-> bindParam(1,$idTF,);
-            $sql_transaction-> bindParam(2,$to);
-            $sql_transaction-> bindParam(3,$from);
-            $sql_transaction-> bindParam(4,$amount);        
-            $sql_transaction-> bindParam(5,$tanggal);        
-            $sql_transaction-> bindParam(6,$status); 
-            $sql_transaction->execute();
-        }  
-        
-
-
-
-    function getById($idRekening) {
-        $conn = getConnection();
-        $sql = "SELECT idAkun From TblAkun Where idAkun=:idRekening";
-        $stmt = $conn->prepare($sql);
-        return $stmt->execute();
-
-    }
-
+//
 
 
 ?>

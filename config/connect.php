@@ -1,20 +1,20 @@
 <?php
-$dsn ='mysql:dbname=tsa_bank;host=185.73.39.162';
+function getConnect(){
+
+
+$host ='147.139.214.202';
 $username = "user_bank_api";
 $password = "YyDyKWpa7WxN5kY8";
-
-try{
-    $conn = new PDO($dsn,$username,$password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
-    echo "Connect Succesfully";
-}
-catch (PDOException $e){
-    echo("Can't open the database." . $e->getMessage());
-}
-finally{
-    $conn = null;
-}
+$db = "tsa_bank";
 
 
+    $conn = new mysqli($host,$username,$password,$db);
+
+    if($conn->connect_errno){
+        echo "Can't Connect Error :" . $conn->connect_error;
+        exit();
+    }
+    return $conn;
+}
 
 ?>

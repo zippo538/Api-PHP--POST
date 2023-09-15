@@ -1,0 +1,1 @@
+INSERT into TblAkun (idAkun,nama,norek,saldo) VALUES (1,"sasa","0025572190",5000);
